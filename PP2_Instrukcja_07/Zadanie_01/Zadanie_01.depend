@@ -1,0 +1,13 @@
+# depslib dependency file v1.0
+1685564090 source:c:\users\pc\desktop\pp2_instrukcja_07\zadanie_01\queue.c
+	"queue.h"
+	<stdlib.h>
+
+1685563942 c:\users\pc\desktop\pp2_instrukcja_07\zadanie_01\queue.h
+
+1685568688 source:c:\users\pc\desktop\pp2_instrukcja_07\zadanie_01\main.c
+	<stdio.h>
+	<stdlib.h>
+	<stdbool.h>
+	"queue.h"
+
