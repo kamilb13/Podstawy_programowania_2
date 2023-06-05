@@ -1,0 +1,721 @@
+1. ZADANIE
+ 1 #include<stdio.h>
+ 2 #include<stdlib.h>
+ 3 #include<stdbool.h>
+ 4 #include<time.h>
+ 5
+ 6 struct fifo_node
+ 7 {
+ 8 int vertex_number;
+ 9 struct fifo_node *next;
+ 10 };
+ 11
+ 12 struct fifo_pointers
+ 13 {
+ 14 struct fifo_node *head, *tail;
+ 15 };
+ 16
+ 17 void enqueue(struct fifo_pointers *queue, int vertex_number)
+ 18 {
+ 19 struct fifo_node *new_node = (struct fifo_node *)malloc(sizeof(struct
+fifo_node));
+ 20 if(new_node) {
+ 21 new_node->vertex_number = vertex_number;
+ 22 new_node->next = NULL;
+ 23 if(queue->head==NULL && queue->tail==NULL)
+ 24 queue->head = queue->tail = new_node;
+ 25 else {
+ 26 queue->tail->next = new_node;
+ 27 queue->tail = new_node;
+ 28 }
+ 29 }
+ 30 }
+ 31
+ 32 int dequeue(struct fifo_pointers *queue)
+ 33 {
+ 34 int vertex_number = -1;
+ 35 if(queue->head) {
+ 36 vertex_number = queue->head->vertex_number;
+ 37 struct fifo_node *temporary = queue->head->next;
+ 38 free(queue->head);
+ 39 queue->head = temporary;
+ 40 if(temporary==NULL)
+ 41 queue->tail = NULL;
+ 42 }
+ 43 return vertex_number;
+ 44 }
+ 45
+ 46 int **adjacency_matrix;
+ 47
+ 48 struct vertex
+ 49 {
+ 50 int vertex_number;
+ 51 struct vertex *next;
+ 52 };
+ 53
+ 54 struct vertices_array
+ 55 {
+ 56 bool visited;
+ 57 struct vertex *neighbours;
+ 58 } *adjacency_list;
+ 59
+ 60 typedef void (*algorithm_pointer)(struct vertices_array *, int);
+ 61
+ 62 struct vertices_array *convert(int **adjacency_matrix, int number_of_vertices)
+ 63 {
+ 64 struct vertices_array *list = NULL;
+ 65 list = (struct vertices_array *)calloc(number_of_vertices, sizeof(struct
+vertices_array));
+ 66 if(list) {
+ 67 for(int i=0; i < number_of_vertices; i++) {
+ 68 struct vertex **new_vertex = &list[i].neighbours;
+ 69 for (int j = 0; j < number_of_vertices; j++) {
+ 70 if (adjacency_matrix[i][j]) {
+ 71 *new_vertex = (struct vertex *)malloc(sizeof(struct vertex));
+ 72 if(*new_vertex) {
+ 73 (*new_vertex)->vertex_number = j;
+ 74 (*new_vertex)->next = NULL;
+ 75 new_vertex = &(*new_vertex)->next;
+ 76 } else
+ 77 fprintf(stderr, "Wyjatek przy tworzeniu wierzcholka %d.\n",j);
+ 78 }
+ 79 }
+ 80 }
+ 81 }
+ 82 return list;
+ 83 }
+ 84
+ 85 void print_adjacency_list(struct vertices_array *adjacency_list, int
+number_of_vertices)
+ 86 {
+ 87 for(int i=0; i < number_of_vertices; i++) {
+ 88 printf("Wierzcholek %d ma sasiadow: ",i);
+ 89 struct vertex *neighbour = adjacency_list[i].neighbours;
+ 90 while(neighbour) {
+ 91 printf("%3d", neighbour->vertex_number);
+ 92 neighbour = neighbour->next;
+ 93 }
+ 94 puts("");
+ 95 }
+ 96 }
+ 97
+ 98 void dfs(struct vertices_array *adjacency_list, int vertex_number)
+ 99 {
+100 printf("%3d", vertex_number);
+101 struct vertex *neighbour = adjacency_list[vertex_number].neighbours;
+102 adjacency_list[vertex_number].visited = true;
+103 while(neighbour) {
+104 if(!adjacency_list[neighbour->vertex_number].visited)
+105 dfs(adjacency_list, neighbour->vertex_number);
+106 neighbour = neighbour->next;
+107 }
+108 }
+109
+110 void bfs(struct vertices_array *adjacency_list, int vertex_number)
+111 {
+112 struct fifo_pointers queue;
+113 queue.head = queue.tail = NULL;
+114 enqueue(&queue,vertex_number);
+115 while(queue.head) {
+116 vertex_number = dequeue(&queue);
+117 if(!adjacency_list[vertex_number].visited) {
+118 struct vertex *neighbour = adjacency_list[vertex_number].neighbours;
+119 while(neighbour) {
+120 enqueue(&queue,neighbour->vertex_number);
+121 neighbour = neighbour->next;
+122 }
+123 printf("%3d", vertex_number );
+124 adjacency_list[vertex_number].visited = true;
+125 }
+126 }
+127 }
+128
+129 void visit_all_vertices(struct vertices_array *adjacency_list, int start_vertex,
+algorithm_pointer algorithm, int number_of_vertices)
+130 {
+131 if(start_vertex>=0 && start_vertex < number_of_vertices) {
+132 algorithm(adjacency_list, start_vertex);
+133 for (int i = 0; i < number_of_vertices; i++)
+134 if (!adjacency_list[i].visited)
+135 algorithm(adjacency_list, i);
+136 } else
+137 puts("Zly numer wierzcholka poczatkowego.");
+138 }
+139
+140 struct vertices_array *remove_adjacency_list(struct vertices_array
+*adjacency_list, int number_of_vertices)
+141 {
+142 for (int i = 0; i < number_of_vertices; i++) {
+143 struct vertex *neighbour = adjacency_list[i].neighbours;
+144 while(neighbour) {
+145 struct vertex *temporary = neighbour->next;
+146 free(neighbour);
+147 neighbour = temporary;
+148 }
+149 }
+150 free(adjacency_list);
+151 return NULL;
+152 }
+153
+154 int main(void)
+155 {
+156 srand(time(NULL));
+157 int random;
+158 int number_of_vertices;
+159
+160 printf("Wprowadz liczbe wierzcholkow: ");
+161 scanf("%d",&number_of_vertices);
+162
+163 // Dynamicznie deklarowana macierz incydencji
+164 adjacency_matrix=(int**)malloc(number_of_vertices*sizeof(int*));
+165 for(int i=0;i<number_of_vertices;i++)
+166 adjacency_matrix[i]=(int*)malloc(number_of_vertices*sizeof(int));
+167
+168 printf("Wprowadz macierz sasiedztwa:\n");
+169 for(int i=0;i<number_of_vertices;i++)
+170 {
+171 for(int j=0;j<number_of_vertices;j++)
+172 {
+173 random = rand()%2;
+174 adjacency_matrix[i][j] = random;
+175 }
+176 }
+177 // Wypisuje
+178 for(int i=0;i<number_of_vertices;i++)
+179 {
+180 for(int j=0;j<number_of_vertices;j++)
+181 printf("%d ", adjacency_matrix[i][j]);
+182 puts("");
+183 }
+184
+185 adjacency_list=convert(adjacency_matrix,number_of_vertices);
+186
+187 if(adjacency_list)
+188 {
+189 print_adjacency_list(adjacency_list,number_of_vertices);
+190
+191 // Zwalnia plamiec macierzy dynamicznej
+192 for(int i=0;i<number_of_vertices;i++)
+193 free(adjacency_matrix[i]);
+194 free(adjacency_matrix);
+195 }
+196
+197 return 0;
+198
+199 }
+
+2. ZADANIE
+ 1 #include<stdio.h>
+ 2 #include<stdlib.h>
+ 3 #include<stdbool.h>
+ 4
+ 5 struct fifo_node
+ 6 {
+ 7 int vertex_number;
+ 8 struct fifo_node *next;
+ 9 };
+ 10
+ 11 struct fifo_pointers
+ 12 {
+ 13 struct fifo_node *head, *tail;
+ 14 };
+ 15
+ 16 void enqueue(struct fifo_pointers *queue, int vertex_number)
+ 17 {
+ 18 struct fifo_node *new_node = (struct fifo_node *)malloc(sizeof(struct
+fifo_node));
+ 19 if(new_node) {
+ 20 new_node->vertex_number = vertex_number;
+ 21 new_node->next = NULL;
+ 22 if(queue->head==NULL && queue->tail==NULL)
+ 23 queue->head = queue->tail = new_node;
+ 24 else {
+ 25 queue->tail->next = new_node;
+ 26 queue->tail = new_node;
+ 27 }
+ 28 }
+ 29 }
+ 30
+ 31 int dequeue(struct fifo_pointers *queue)
+ 32 {
+ 33 int vertex_number = -1;
+ 34 if(queue->head) {
+ 35 vertex_number = queue->head->vertex_number;
+ 36 struct fifo_node *temporary = queue->head->next;
+ 37 free(queue->head);
+ 38 queue->head = temporary;
+ 39 if(temporary==NULL)
+ 40 queue->tail = NULL;
+ 41 }
+ 42 return vertex_number;
+ 43 }
+ 44
+ 45 // Lista
+ 46 typedef int matrix[50][50];
+ 47
+ 48 const matrix adjacency_matrix = {
+ 49 {0,1,0,0,1},
+ 50 {1,0,1,1,1},
+ 51 {0,1,0,1,0},
+ 52 {0,1,1,0,1},
+ 53 {1,1,0,1,0}
+ 54 };
+ 55
+ 56 struct vertex
+ 57 {
+ 58 int vertex_number;
+ 59 struct vertex *next;
+ 60 };
+ 61
+ 62 //Lista
+ 63 struct vertices_list
+ 64 {
+ 65 bool visited;
+ 66 struct vertex *neighbours;
+ 67 struct vertices_list *next;
+ 68 } *adjacency_list;
+ 69
+ 70 typedef void (*algorithm_pointer)(struct vertices_list *, int);
+ 71
+ 72 struct vertices_list *convert(const matrix adjacency_matrix)
+ 73 {
+ 74 struct vertices_list *list = NULL;
+ 75 for(int i=0; i < 5; i++) {
+ 76 struct vertices_list *new_vertex_list = (struct vertices_list
+*)malloc(sizeof(struct vertices_list));
+ 77 if(new_vertex_list) {
+ 78 new_vertex_list->visited = false;
+ 79 new_vertex_list->neighbours = NULL;
+ 80 new_vertex_list->next = list;
+ 81 list = new_vertex_list;
+ 82
+ 83 struct vertex **new_vertex = &new_vertex_list->neighbours;
+ 84 for (int j = 0; j < 5; j++) {
+ 85 if (adjacency_matrix[i][j]) {
+ 86 *new_vertex = (struct vertex *)malloc(sizeof(struct vertex));
+ 87 if(*new_vertex) {
+ 88 (*new_vertex)->vertex_number = j;
+ 89 (*new_vertex)->next = NULL;
+ 90 new_vertex = &(*new_vertex)->next;
+ 91 } else
+ 92 fprintf(stderr, "Wyjatek przy tworzeniu wierzcholka %d.\n",j);
+ 93 }
+ 94 }
+ 95 }
+ 96 }
+ 97 return list;
+ 98 }
+ 99
+100 void print_adjacency_list(struct vertices_list *adjacency_list)
+101 {
+102 int i=0;
+103 while(adjacency_list) {
+104 printf("Wierzcholek %d ma sasiadow: ",i);
+105 struct vertex *neighbour = adjacency_list->neighbours;
+106 while(neighbour) {
+107 printf("%3d", neighbour->vertex_number);
+108 neighbour = neighbour->next;
+109 }
+110 puts("");
+111 adjacency_list=adjacency_list->next;
+112 i++;
+113 }
+114 }
+115
+116 void dfs(struct vertices_list *adjacency_list, int vertex_number)
+117 {
+118 printf("%3d", vertex_number);
+119 struct vertices_list* temp_adjacency_list=adjacency_list;
+120 for(int i=0;i<vertex_number;i++)
+121 temp_adjacency_list=temp_adjacency_list->next;
+122
+123 struct vertex *neighbour = temp_adjacency_list->neighbours;
+124 temp_adjacency_list->visited=true;
+125
+126 while(neighbour) {
+127 struct vertices_list* temp_adjacency_list2=adjacency_list;
+128 for(int i=0;i<neighbour->vertex_number;i++)
+129 temp_adjacency_list2=temp_adjacency_list2->next;
+130
+131 if(!temp_adjacency_list2->visited)
+132 dfs(adjacency_list, neighbour->vertex_number);
+133
+134 neighbour=neighbour->next;
+135 }
+136 }
+137
+138 void bfs(struct vertices_list *adjacency_list, int vertex_number)
+139 {
+140 struct fifo_pointers queue;
+141 queue.head = queue.tail = NULL;
+142 enqueue(&queue,vertex_number);
+143 while(queue.head) {
+144 vertex_number = dequeue(&queue);
+145 struct vertices_list* temp_adjacency_list=adjacency_list;
+146 for(int i=0;i<vertex_number;i++)
+147 temp_adjacency_list=temp_adjacency_list->next;
+148
+149 if(!temp_adjacency_list->visited) {
+150 struct vertex *neighbour = temp_adjacency_list->neighbours;
+151 while(neighbour) {
+152 enqueue(&queue,neighbour->vertex_number);
+153 neighbour = neighbour->next;
+154 }
+155 printf("%3d", vertex_number );
+156 temp_adjacency_list->visited = true;
+157 }
+158 }
+159 }
+160
+161 void visit_all_vertices(struct vertices_list *adjacency_list, int start_vertex,
+algorithm_pointer algorithm)
+162 {
+163 if(start_vertex>=0 && start_vertex < 5) {
+164 algorithm(adjacency_list, start_vertex);
+165 for (int i = 0; i < 5; i++)
+166 if (!adjacency_list[i].visited)
+167 algorithm(adjacency_list, i);
+168 } else
+169 puts("Zly numer wierzcholka poczatkowego.");
+170 }
+171
+172 struct vertices_list *remove_adjacency_list(struct vertices_list
+*adjacency_list)
+173 {
+174 while(adjacency_list) {
+175 struct vertex *neighbour = adjacency_list->neighbours;
+176 while(neighbour) {
+177 struct vertex *temporary = neighbour->next;
+178 free(neighbour);
+179 neighbour = temporary;
+180 }
+181 struct vertices_list *temporary=adjacency_list->next;
+182 free(adjacency_list);
+183 adjacency_list=temporary;
+184 }
+185 return NULL;
+186 }
+187
+188 int main(void)
+189 {
+190 adjacency_list = convert(adjacency_matrix);
+191 if(adjacency_list) {
+192 print_adjacency_list(adjacency_list);
+193 puts("Prosze wskazac wierzcholek poczatkowy:");
+194 int start_vertex;
+195 scanf("%d",&start_vertex);
+196 printf("Wynik algorytmu DFS: ");
+197 visit_all_vertices(adjacency_list,start_vertex,dfs);
+198 puts("");
+199 for(int i=0; i < 5; i++)
+200 adjacency_list[i].visited = false;
+201 printf("Wynik algorytmu BFS: ");
+202 visit_all_vertices(adjacency_list,start_vertex,bfs);
+203 puts("");
+204 adjacency_list = remove_adjacency_list(adjacency_list);
+205 }
+206 return 0;
+207 }
+
+3. ZADANIE
+ 1 #include <stdio.h>
+ 2 #include <stdlib.h>
+ 3 #include <stdbool.h>
+ 4
+ 5 #define NUMBER_OF_VERTICES 5
+ 6
+ 7 struct fifo_node
+ 8 {
+ 9 int vertex_number;
+ 10 struct fifo_node *next;
+ 11 };
+ 12
+ 13 struct fifo_pointers
+ 14 {
+ 15 struct fifo_node *head, *tail;
+ 16 };
+ 17
+ 18 void enqueue(struct fifo_pointers *queue, int vertex_number)
+ 19 {
+ 20 struct fifo_node *new_node = (struct fifo_node *)malloc(sizeof(struct
+fifo_node));
+ 21 if(new_node) {
+ 22 new_node->vertex_number = vertex_number;
+ 23 new_node->next = NULL;
+ 24 if(queue->head==NULL && queue->tail==NULL)
+ 25 queue->head = queue->tail = new_node;
+ 26 else {
+ 27 queue->tail->next = new_node;
+ 28 queue->tail = new_node;
+ 29 }
+ 30 }
+ 31 }
+ 32
+ 33 int dequeue(struct fifo_pointers *queue)
+ 34 {
+ 35 int vertex_number = -1;
+ 36 if(queue->head) {
+ 37 vertex_number = queue->head->vertex_number;
+ 38 struct fifo_node *temporary = queue->head->next;
+ 39 free(queue->head);
+ 40 queue->head = temporary;
+ 41 if(temporary==NULL)
+ 42 queue->tail = NULL;
+ 43 }
+ 44 return vertex_number;
+ 45 }
+ 46
+ 47 typedef int matrix[NUMBER_OF_VERTICES][NUMBER_OF_VERTICES];
+ 48
+ 49 const matrix adjacency_matrix = {
+ 50 {0,2,0,2,1},
+ 51 {5,0,8,7,1},
+ 52 {0,1,0,1,0},
+ 53 {0,3,1,0,1},
+ 54 {1,2,0,1,0}
+ 55 };
+ 56
+ 57 struct vertex
+ 58 {
+ 59 int vertex_number;
+ 60 //---
+ 61 int weight;
+ 62 struct vertex *next;
+ 63 };
+ 64
+ 65 struct vertices_array
+ 66 {
+ 67 bool visited;
+ 68 struct vertex *neighbours;
+ 69 } *adjacency_list;
+ 70
+ 71 typedef void (*algorithm_pointer)(struct vertices_array *, int);
+ 72
+ 73 struct vertices_array *convert(const matrix adjacency_matrix)
+ 74 {
+ 75 struct vertices_array *list = NULL;
+ 76 list = (struct vertices_array *)calloc(NUMBER_OF_VERTICES,
+sizeof(struct vertices_array));
+ 77 if(list) {
+ 78 for(int i=0; i < NUMBER_OF_VERTICES; i++) {
+ 79 struct vertex **new_vertex = &list[i].neighbours;
+ 80 for (int j = 0; j < NUMBER_OF_VERTICES; j++) {
+ 81 if (adjacency_matrix[i][j]) {
+ 82 *new_vertex = (struct vertex *)malloc(sizeof(struct vertex));
+ 83 if(*new_vertex) {
+ 84 (*new_vertex)->vertex_number = j;
+ 85 //---
+ 86 (*new_vertex)->weight = adjacency_matrix[i][j];
+ 87 (*new_vertex)->next = NULL;
+ 88 new_vertex = &(*new_vertex)->next;
+ 89 } else
+ 90 fprintf(stderr, "Wyjatek przy tworzeniu wierzcholka %d.\n",j);
+ 91 }
+ 92 }
+ 93 }
+ 94 }
+ 95 return list;
+ 96 }
+ 97
+ 98 void print_adjacency_list(struct vertices_array *adjacency_list)
+ 99 {
+100 for(int i=0; i < NUMBER_OF_VERTICES; i++) {
+101 printf("Wierzcholek %d ma sasiadow: ",i);
+102 struct vertex *neighbour = adjacency_list[i].neighbours;
+103 while(neighbour) {
+104 //---
+105 printf("%d-(w.%d) ", neighbour->vertex_number, neighbour->weight);
+106 neighbour = neighbour->next;
+107 }
+108 puts("");
+109 }
+110 }
+111
+112 void dfs(struct vertices_array *adjacency_list, int vertex_number)
+113 {
+114 printf("%3d", vertex_number);
+115 struct vertex *neighbour = adjacency_list[vertex_number].neighbours;
+116 adjacency_list[vertex_number].visited = true;
+117 while(neighbour) {
+118 if(!adjacency_list[neighbour->vertex_number].visited)
+119 dfs(adjacency_list, neighbour->vertex_number);
+120 neighbour = neighbour->next;
+121 }
+122 }
+123
+124 void bfs(struct vertices_array *adjacency_list, int vertex_number)
+125 {
+126 struct fifo_pointers queue;
+127 queue.head = queue.tail = NULL;
+128 enqueue(&queue,vertex_number);
+129 while(queue.head) {
+130 vertex_number = dequeue(&queue);
+131 if(!adjacency_list[vertex_number].visited) {
+132 struct vertex *neighbour = adjacency_list[vertex_number].neighbours;
+133 while(neighbour) {
+134 enqueue(&queue,neighbour->vertex_number);
+135 neighbour = neighbour->next;
+136 }
+137 printf("%3d", vertex_number );
+138 adjacency_list[vertex_number].visited = true;
+139 }
+140 }
+141 }
+142
+143 void visit_all_vertices(struct vertices_array *adjacency_list, int start_vertex,
+algorithm_pointer algorithm)
+144 {
+145 if(start_vertex>=0 && start_vertex < NUMBER_OF_VERTICES) {
+146 algorithm(adjacency_list, start_vertex);
+147 for (int i = 0; i < NUMBER_OF_VERTICES; i++)
+148 if (!adjacency_list[i].visited)
+149 algorithm(adjacency_list, i);
+150 } else
+151 puts("Zly numer wierzcholka poczatkowego.");
+152 }
+153
+154 struct vertices_array *remove_adjacency_list(struct vertices_array
+*adjacency_list)
+155 {
+156 for (int i = 0; i < NUMBER_OF_VERTICES; i++) {
+157 struct vertex *neighbour = adjacency_list[i].neighbours;
+158 while(neighbour) {
+159 struct vertex *temporary = neighbour->next;
+160 free(neighbour);
+161 neighbour = temporary;
+162 }
+163 }
+164 free(adjacency_list);
+165 return NULL;
+166 }
+167
+168 int main(void)
+169 {
+170 adjacency_list = convert(adjacency_matrix);
+171 if(adjacency_list) {
+172 print_adjacency_list(adjacency_list);
+173 adjacency_list = remove_adjacency_list(adjacency_list);
+174 }
+175 return 0;
+176 }
+
+4. ZADANIE
+ 1 #include <stdio.h>
+ 2 #include <stdbool.h>
+ 3
+ 4 #define NUMBER_OF_VERTICES 5
+ 5
+ 6 typedef int matrix[NUMBER_OF_VERTICES][NUMBER_OF_VERTICES];
+ 7
+ 8 // Preorder, Stos i Rekurencja
+ 9 // Przechodzi do pierwszego sasiada w wierzcholku i przechodzi powtarza to az w
+wierzcholku nie bedzie juz odwiedzonych
+10 void dfs(const matrix adjacency_matrix, bool visited[], int vertex_number) {
+11 printf("%d ", vertex_number);
+12 visited[vertex_number] = true;
+13 for (int i = 0; i < NUMBER_OF_VERTICES; i++)
+14 if (adjacency_matrix[vertex_number][i] && !visited[i])
+15 dfs(adjacency_matrix, visited, i);
+16 }
+17
+18 int main(void) {
+19 const matrix adjacency_matrix = {
+20 {0, 1, 0, 0, 1},
+21 {1, 0, 1, 1, 1},
+22 {0, 1, 0, 1, 0},
+23 {0, 1, 1, 0, 1},
+24 {1, 1, 0, 1, 0}
+25 };
+26
+27 bool visited[NUMBER_OF_VERTICES] = {false};
+28
+29 printf("Wynik algorytmu DFS: ");
+30 dfs(adjacency_matrix, visited, 0);
+31
+32 return 0;
+33 }
+
+5. ZADANIE
+ 1 #include <stdio.h>
+ 2 #include <stdbool.h>
+ 3 #include <stdlib.h>
+ 4
+ 5 #define NUMBER_OF_VERTICES 5
+ 6
+ 7 typedef int matrix[NUMBER_OF_VERTICES][NUMBER_OF_VERTICES];
+ 8
+ 9 // FIFO
+10 struct fifo_node
+11 {
+12 int vertex_number;
+13 struct fifo_node *next;
+14 };
+15
+16 struct fifo_pointers
+17 {
+18 struct fifo_node *head, *tail;
+19 };
+20
+21 void enqueue(struct fifo_pointers *queue, int vertex_number)
+22 {
+23 struct fifo_node *new_node = (struct fifo_node *)malloc(sizeof(struct
+fifo_node));
+24 if(new_node) {
+25 new_node->vertex_number = vertex_number;
+26 new_node->next = NULL;
+27 if(queue->head==NULL && queue->tail==NULL)
+28 queue->head = queue->tail = new_node;
+29 else {
+30 queue->tail->next = new_node;
+31 queue->tail = new_node;
+32 }
+33 }
+34 }
+35
+36 int dequeue(struct fifo_pointers *queue)
+37 {
+38 int vertex_number = -1;
+39 if(queue->head) {
+40 vertex_number = queue->head->vertex_number;
+41 struct fifo_node *temporary = queue->head->next;
+42 free(queue->head);
+43 queue->head = temporary;
+44 if(temporary==NULL)
+45 queue->tail = NULL;
+46 }
+47 return vertex_number;
+48 }
+49
+50 // FIFO
+51 // Odwiedza wszystkich sasiadow, a potem wraca do samego poczatku
+52 void bfs(const matrix adjacency_matrix, bool visited[], int start_vertex) {
+53 struct fifo_pointers queue = {NULL, NULL};
+54 enqueue(&queue, start_vertex);
+55 while (queue.head) {
+56 int vertex_number = dequeue(&queue);
+57 if (!visited[vertex_number]) {
+58 printf("%d ", vertex_number);
+59 visited[vertex_number] = true;
+60 for (int i = 0; i < NUMBER_OF_VERTICES; i++)
+61 if (adjacency_matrix[vertex_number][i])
+62 enqueue(&queue, i);
+63 }
+64 }
+65 }
+66
+67 int main(void) {
+68 const matrix adjacency_matrix = {
+69 {0, 1, 0, 0, 1},
+70 {1, 0, 1, 1, 1},
+71 {0, 1, 0, 1, 0},
+72 {0, 1, 1, 0, 1},
+73 {1, 1, 0, 1, 0}
+74 };
+75
+76 bool visited[NUMBER_OF_VERTICES] = {false};
+77
+78 printf("Wynik algorytmu BFS: ");
+79 bfs(adjacency_matrix, visited, 0);
+80
+81 return 0;
+82 }
