@@ -1,0 +1,6 @@
+# depslib dependency file v1.0
+1681846576 source:c:\users\pc\desktop\pp2\lab_05\lab_05\zad_02\main.c
+	<stdio.h>
+	<stdlib.h>
+	<stdbool.h>
+
